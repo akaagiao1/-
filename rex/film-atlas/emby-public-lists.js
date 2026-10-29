@@ -1,7 +1,7 @@
 WidgetMetadata = {
   "id": "org.ffinly.publiclists.rex",
-  "title": "公开影视榜单 · 七梯队与豆瓣分类",
-  "version": "1.0.0",
+  "title": "片场 · 电影与剧集完整榜单",
+  "version": "1.1.0",
   "requiredVersion": "0.0.1",
   "description": "浏览 emby-collection-sync 公布的 TMDB 榜单：六个梯队分组、豆瓣电影28类和电视剧10类。仅提供榜单，详情使用 rex 内置 TMDB。",
   "author": "Community",
@@ -74,6 +74,22 @@ WidgetMetadata = {
           "value": "zh-CN"
         },
         {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
+        },
+        {
           "name": "page",
           "title": "页码",
           "type": "page"
@@ -143,6 +159,22 @@ WidgetMetadata = {
           "value": "zh-CN"
         },
         {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
+        },
+        {
           "name": "page",
           "title": "页码",
           "type": "page"
@@ -196,6 +228,22 @@ WidgetMetadata = {
           "value": "zh-CN"
         },
         {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
+        },
+        {
           "name": "page",
           "title": "页码",
           "type": "page"
@@ -241,6 +289,22 @@ WidgetMetadata = {
           "value": "zh-CN"
         },
         {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
+        },
+        {
           "name": "page",
           "title": "页码",
           "type": "page"
@@ -284,6 +348,22 @@ WidgetMetadata = {
           "title": "显示语言",
           "type": "language",
           "value": "zh-CN"
+        },
+        {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
         },
         {
           "name": "page",
@@ -353,6 +433,22 @@ WidgetMetadata = {
           "title": "显示语言",
           "type": "language",
           "value": "zh-CN"
+        },
+        {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
         },
         {
           "name": "page",
@@ -1222,6 +1318,22 @@ WidgetMetadata = {
           "value": "zh-CN"
         },
         {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
+        },
+        {
           "name": "page",
           "title": "页码",
           "type": "page"
@@ -1515,6 +1627,22 @@ WidgetMetadata = {
           "title": "显示语言",
           "type": "language",
           "value": "zh-CN"
+        },
+        {
+          "name": "mode",
+          "title": "加载方式",
+          "type": "enumeration",
+          "value": "all",
+          "enumOptions": [
+            {
+              "title": "完整榜单（自动获取全部页）",
+              "value": "all"
+            },
+            {
+              "title": "分页加载（每次一页）",
+              "value": "paged"
+            }
+          ]
         },
         {
           "name": "page",
@@ -2632,16 +2760,44 @@ function toVideoItem(item, defaultType) {
   };
 }
 
+function listRows(body) {
+  return Array.isArray(body.results) ? body.results : body.items;
+}
+
 async function readSelectedList(selected, params) {
+  var mode = params.mode || "all";
+  if (mode !== "all" && mode !== "paged") throw new Error("无效的加载模式");
   var page = listPage(params.page);
-  var body = await fetchList(selected.id, params, page);
-  var items = Array.isArray(body.results) ? body.results : body.items;
-  // Older v3 responses expose the entire list as items, without total_pages.
+  // A complete response is emitted once; do not repeat it on later scroll pages.
+  if (mode === "all" && page > 1) return [];
+  var body = await fetchList(selected.id, params, mode === "all" ? 1 : page);
+  var items = listRows(body);
+  var hasPages = body.total_pages !== undefined && body.total_pages !== null;
   var remotePages = Number(body.total_pages);
-  if (Number.isInteger(remotePages) && remotePages >= 0) {
-    if (page > remotePages) return [];
-  } else {
-    items = items.slice((page - 1) * 20, page * 20);
+  if (hasPages && (!Number.isSafeInteger(remotePages) || remotePages < 0)) throw new Error("TMDB 返回的总页数无效");
+  if (mode === "paged") {
+    if (hasPages) {
+      if (page > remotePages) return [];
+    } else {
+      items = items.slice((page - 1) * 20, page * 20);
+    }
+  } else if (hasPages && remotePages > 1) {
+    if (remotePages > 500) throw new Error("榜单超过完整加载上限，请选择分页加载；未返回截断榜单");
+    if (!items.length) throw new Error("榜单首页异常为空，请刷新重试");
+    items = items.slice();
+    // Bounded batches preserve the source order without flooding TMDB.
+    for (var next = 2; next <= remotePages; next += 3) {
+      var requests = [];
+      for (var current = next; current <= Math.min(next + 2, remotePages); current++) {
+        requests.push(fetchList(selected.id, params, current));
+      }
+      var pages = await Promise.all(requests);
+      for (var index = 0; index < pages.length; index++) {
+        var rows = listRows(pages[index]);
+        if (!rows.length) throw new Error("榜单分页异常为空，无法确认完整性，请刷新重试");
+        items = items.concat(rows);
+      }
+    }
   }
   return items.map(function (item) { return toVideoItem(item, selected.mediaType); }).filter(function (item) { return item !== null; });
 }
